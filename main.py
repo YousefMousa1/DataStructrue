@@ -188,16 +188,19 @@ class AVLTree(object):
     """
 
     def search(self, key):
-        if self.root is None or self.root.get_height() == -1:  # root is a virtual node or not existent
-            return None
+
         curr = self.root
+        if curr is None or not curr.is_real_node():  # root is a virtual node or not existent
+            return None
         while curr.is_real_node():  # if curr is not a virtual node nor None
             if curr.key == key:
                 return curr
             elif curr.key < key:
-                curr = curr.left
-            elif curr.key > key:
                 curr = curr.right
+            elif curr.key > key:
+                curr = curr.left
+        if not curr.is_real_node():
+            return None
         return curr
 
     def tree_position(self, key):
@@ -252,29 +255,11 @@ class AVLTree(object):
             self.root = y
             sub_root = y
 
-        z.height = 1 + max(z.get_left().get_height(), z.get_right().get_height())
-        y.height = 1 + max(y.get_left().get_height(), y.get_right().get_height())
-        sub_root.height = 1 + max(sub_root.get_left().get_height(), sub_root.get_right().get_height())
-        print(y.get_height())
-
-
-    def left_rotation_v2(self, node):
-        A = node.right
-
-        node.right = A.left
-        A.left.set_parent(node)
-        A.left = node
-        A.parent = node.parent
-        if A.key > A.parent.key:
-            A.parent.right = A
-        else:
-            A.parent.left = A
-
-        node.parent = A
-
-        # update heights
-        node.height = 1 + max(node.left.get_height, node.right.get_height)
-        A.height = 1 + max(A.left.get_height(), A.right.get_height())
+        self.update_height(z)
+        self.update_height(y)
+        while (sub_root is not None):
+            self.update_height(sub_root)
+            sub_root = sub_root.get_parent()
 
     def left_rotation(self, z):
         sub_root = z.get_parent()
@@ -295,39 +280,14 @@ class AVLTree(object):
             y.parent.right = y
         elif y.key < y.parent.key:
             y.parent.left = y
+        self.update_height(z)
+        self.update_height(y)
+
+        while(sub_root is not None):
+            self.update_height(sub_root)
+            sub_root = sub_root.get_parent()
 
 
-
-        z.height = 1 + max(z.get_left().get_height(), z.get_right().get_height())
-        y.height = 1 + max(y.get_left().get_height(), y.get_right().get_height())
-        sub_root.height = 1 + max(sub_root.get_left().get_height(), sub_root.get_right().get_height())
-
-    def right_rotation_V2(self, B):
-        A = B.get_left()
-        B.left = A.get_right()
-        B.left.parent = B
-        A.right = B
-        A.parent = B.parent
-        if(A.parent.key > A.key):
-            A.parent.left = A
-        else:
-            A.parent.right = A
-        B.parent = A
-      #  if z.right is None:
-      #      z.right = AVLNode(None, None)
-      #  if not t3.is_real_node:
-      #      t3.parent = z
-      #  y.parent = sub_root
-
-       # if not y.parent is None:
-      #      sub_root.left = y
-      #  else:
-        #    self.root = y
-       #     sub_root = y
-        B.height = 1 + max(B.get_left().get_height(), B.get_right().get_height())
-        A.height = 1 + max(A.get_left().get_height(), A.get_right().get_height())
-        A.parent.height = 1 + max(A.parent.get_left().get_height(), A.parent.get_right().get_height())
-        print(A.get_height())
 
     def insert_BST(self, key, val):
         inserted = self.create_real_node(key, val)
@@ -356,6 +316,7 @@ class AVLTree(object):
         inserted.set_parent(curr)
         self.update_height(curr)
         self.height_fix(inserted)
+
 
         return inserted
 
@@ -386,6 +347,8 @@ class AVLTree(object):
             elif abs(bf) == 2:
                 cnt += self.rotations_insert(parent)
                 return cnt
+
+        print("the insert cnt is: " , cnt)
         return cnt
 
     def rotations_insert(self, node):
@@ -424,59 +387,124 @@ class AVLTree(object):
         self.preOrder(root.right)
 
     def successor(self, node):
-        current = node.right
-        while current.left is not None:
-            current = current.left
-        return current
+        current = node
+        while current.get_right().is_real_node():
+            current = current.right
+            while current.get_left().is_real_node():
+                current = current.left
+            break
 
+        return current
     def delete_BST(self, node):
-        if node.left is None and node.right is None:
+        parent = node.get_parent()
+        if not node.get_left().is_real_node() and not node.get_right().is_real_node():
+            if node.parent is None:
+                self.root = None
+                return
             if (node.parent.key > node.key):
-                node.parent.left = None
+                node.parent.left = AVLNode(None, None)
             else:
-                node.parent.right = None
-        elif node.left is not None and node.right is None:
-            node.left.parent = node.parent
-            node.parent.left = node.left
-        elif node.right is not None and node.left is None:
-            node.right.parent = node.parent
-            node.parent.right = node.right
+                node.parent.right = AVLNode(None, None)
+            self.height_fix(node.parent)
+
+        elif node.get_left().is_real_node() and not node.get_right().is_real_node():
+            if node.parent is None:
+                self.root = node.get_left()
+                self.root.parent = None
+            else:
+                node.left.parent = node.parent
+                if node.parent.key < node.key:
+                    node.parent.right = node.left
+                else:
+                    node.parent.left = node.left
+
+            self.height_fix(node.parent)
+
+        elif node.get_right().is_real_node() and  not node.get_left().is_real_node():
+            if node.parent is None:
+                self.root = node.get_right()
+                self.root.parent = None
+            else:
+                node.right.parent = node.parent
+                if node.parent.key > node.key:
+                    node.parent.left = node.right
+                else:
+                    node.parent.right = node.right
+            self.height_fix(node.parent)
+
         else:
-            successor = self.successor(node)
-            node.key = successor.key
-            self.delete(successor)
+            prev_succ = self.successor(node).get_parent()
+            succ = self.successor(node)
+            if prev_succ is not node:
+                self.swap(node, self.successor(node))
+                self.height_fix(prev_succ)
+            else:
+                self.swap(node, self.successor(node))
+                self.height_fix(succ)
+        return parent
+
+
+    def swap(self, node, succesor):
+        #succesor.parent.left = AVLNode(None, None)
+        if node.get_right() is succesor:
+            succesor.parent = node.parent
+            succesor.parent.right = succesor
+            succesor.left = node.left
+            succesor.left.parent = succesor.parent
+        else:
+            succesor.parent.left = succesor.right
+            succesor.right.parent = succesor.parent
+            succesor.parent = node.parent
+            succesor.left = node.left
+            succesor.right = node.right
+            succesor.left.parent = succesor
+            succesor.right.parent = succesor
+            if self.root is node:
+                self.root = succesor
+
+
 
     def delete(self, node):
+
+        key = node.get_key()
+        old_height = self.tree_position(key).get_height()
+        parent = self.delete_BST(node)
+        new_height = self.tree_position(key).get_height()
+        h_changed = (new_height != old_height)
         cnt = 0
-        self.delete_BST(node)
-        parent = node.parent
+        parent_lst = []
         while parent is not None:
             bf = parent.calcbf()
-            if abs(bf) < 2 and parent.get_height() == parent.get_oldheight():
+            parent_lst.append(parent.get_parent())
+            if abs(bf) < 2 and not h_changed:
                 return cnt
-            elif abs(bf) < 2 and parent.get_height() != parent.get_oldheight():
+            elif abs(bf) < 2 and h_changed:
                 cnt += 1
                 parent = parent.get_parent()
             elif abs(bf) == 2:
+
                 cnt += self.rotations_delete(parent)
-                return cnt
+                parent = parent_lst[len(parent_lst) - 1]
+
+        print("the delete cnt is: " , cnt)
         return cnt
 
     def rotations_delete(self, node):
-        node_bf = node.calcbf
-        node_right_bf = node.get_right_bf()
-        node_left_bf = node.get_left_bf()
+        node_bf = node.calcbf()
+        if node.get_right().is_real_node():
+            node_right_bf = node.get_right().calcbf()
+        node_left_bf = node.get_left().calcbf()
         if node_bf == -2:
             if node.get_right().calcbf() == -1 or node_right_bf == 0:  # case 1
                 self.left_rotation(node)
                 return 1
             if node_right_bf == 1:
-                self.right_rotation(node)
+                self.right_rotation(node.get_right())
                 self.left_rotation(node)
                 return 2
-        if node.bf == 2:
+        if node.calcbf() == 2:
             if node_left_bf == -1:  # case 2
-                self.left_rotation(node)
+                self.left_rotation(node.get_left())
                 self.right_rotation(node)
                 return 2
             if node_left_bf == 1 or node_right_bf == 0:
@@ -553,31 +581,170 @@ def print_avl_tree(root, level=0, prefix="Root: "):
 
 def insert_and_print(avl_tree, key, value):
     print(f"Inserting node ({key}, {value}) into the AVL tree:")
-    avl_tree.insert_BST(key, value)
+    avl_tree.insert(key, value)
 
     print("\n")
-
-
-
 
 def main():
     avl_tree = AVLTree()
 
-    # Insert nodes
-    avl_tree.insert(1, "A")
-    avl_tree.insert(2, "B")
-    avl_tree.insert(3, "c")
-    avl_tree.insert(4, "two")
-    avl_tree.insert(5, "four")
-    avl_tree.insert(6, "five")
-    avl_tree.insert(7, "three")
-    avl_tree.insert(8, "seven")
-    avl_tree.insert(9, "eight")
-    avl_tree.insert_BST(10, "ten")
+    avl_tree.insert(15, "15")
+    avl_tree.insert(8, "8")
+    avl_tree.insert(22, "22")
+    avl_tree.insert(4, "4")
+    avl_tree.insert(20, "20")
+    avl_tree.insert(11, "11")
+    avl_tree.insert(24, "24")
+    avl_tree.insert(2, "2")
+    avl_tree.insert(18, "18")
+    avl_tree.insert(12, "12")
+    avl_tree.insert(9, "9")
+    avl_tree.insert(13, "13")
     print_avl_tree(avl_tree.get_root())
-    print(avl_tree.get_root().get_height())
+    ans = avl_tree.delete(avl_tree.search(11))
+    print_avl_tree(avl_tree.get_root())
+
 
 
 if __name__ == "__main__":
     main()
 
+        # Check that the node has been deleted and the successor node has taken its place
+#self.assertIsNone(avl_tree.search(24))
+        #self.assertEqual(avl_tree.root.get_value(), "11")
+        #self.assertEqual(avl_tree.root.get_left().get_value(), "8")
+        #self.assertEqual(avl_tree.root.get_right().get_right().get_value(), "20")
+class TestAVLTree(unittest.TestCase):
+    def test_avl_delete_leaf_node(self):
+        avl_tree = AVLTree()
+
+        # Insert nodes into the AVL tree
+        avl_tree.insert(5, "five")
+        avl_tree.insert(3, "three")
+        avl_tree.insert(7, "seven")
+
+        # Delete a leaf node
+        avl_tree.delete(avl_tree.search(3))
+
+        # Check that the node has been deleted
+        self.assertIsNone(avl_tree.search(3))
+
+    def test_avl_delete_node_with_one_child(self):
+        avl_tree = AVLTree()
+
+        # Insert nodes into the AVL tree
+        avl_tree.insert(5, "five")
+        avl_tree.insert(3, "three")
+        avl_tree.insert(7, "seven")
+        avl_tree.insert(6, "six")
+
+        # Delete a node with one child
+        avl_tree.delete(avl_tree.search(7))
+
+        # Check that the node has been deleted and the child node is connected to the parent
+        self.assertIsNone(avl_tree.search(7))
+        self.assertEqual(avl_tree.root.get_right().get_value(), "six")
+
+    def test_avl_delete_node_with_two_children(self):
+        avl_tree = AVLTree()
+
+        # Insert nodes into the AVL tree
+        avl_tree.insert(5, "five")
+        avl_tree.insert(3, "three")
+        avl_tree.insert(7, "seven")
+        avl_tree.insert(6, "six")
+        avl_tree.insert(8, "eight")
+
+        # Delete a node with two children
+        avl_tree.delete(avl_tree.search(7))
+
+        # Check that the node has been deleted and the successor node has taken its place
+        self.assertIsNone(avl_tree.search(7))
+        self.assertEqual(avl_tree.root.get_right().get_value(), "eight")
+        self.assertEqual(avl_tree.root.get_right().get_left().get_value(), "six")
+
+    def test_avl_delete_leaf_node_ten(self):
+        avl_tree = AVLTree()
+
+        # Insert nodes into the AVL tree
+        nodes = [(i, str(i)) for i in range(1, 11)]  # Inserting numbers 1 to 10
+        for key, value in nodes:
+            avl_tree.insert(key, value)
+
+        # Delete a leaf node
+        avl_tree.delete(avl_tree.search(10))
+
+        # Check that the node has been deleted
+        self.assertIsNone(avl_tree.search(10))
+
+    def test_avl_delete_node_with_one_child_ten(self):
+        avl_tree = AVLTree()
+
+        # Insert nodes into the AVL tree
+        nodes = [(i, str(i)) for i in range(1, 11)]  # Inserting numbers 1 to 10
+        for key, value in nodes:
+            avl_tree.insert(key, value)
+
+        # Delete a node with one child
+        avl_tree.delete(avl_tree.search(9))
+
+        # Check that the node has been deleted and the child node is connected to the parent
+        self.assertIsNone(avl_tree.search(9))
+        self.assertEqual(avl_tree.root.get_value(), "4")
+        self.assertEqual(avl_tree.root.right.right.get_value(), "10")
+        self.assertEqual(avl_tree.root.right.get_value(), "8")
+
+    def test_avl_delete_node_with_two_children_ten(self):
+        avl_tree = AVLTree()
+
+        # Insert nodes into the AVL tree
+        avl_tree.insert(15, "15")
+        avl_tree.insert(8, "8")
+        avl_tree.insert(22, "22")
+        avl_tree.insert(4, "4")
+        avl_tree.insert(20, "20")
+        avl_tree.insert(11, "11")
+        avl_tree.insert(24, "24")
+        avl_tree.insert(2, "2")
+        avl_tree.insert(18, "18")
+        avl_tree.insert(12, "12")
+        avl_tree.insert(9, "9")
+        avl_tree.insert(13, "13")
+
+        # Delete a node with two children
+        ans = avl_tree.delete(avl_tree.search(11))
+
+        # Check that the node has been deleted and the successor node has taken its place
+        self.assertIsNone(avl_tree.search(11))
+        self.assertEqual(avl_tree.root.get_value(), "15")
+        self.assertEqual(avl_tree.root.get_left().get_value(), "8")
+        self.assertEqual(avl_tree.root.get_left().get_right().get_value(), "12")
+        self.assertEqual(avl_tree.root.get_right().get_right().get_value(), "24")
+        self.assertEqual(avl_tree.root.get_left().get_right().get_right().get_value(), "13")
+        self.assertEqual(ans, 3)
+
+    def test_avl_delete_node_with_two_rotations(self):
+        avl_tree = AVLTree()
+
+        # Insert nodes into the AVL tree
+        avl_tree.insert(15, "15")
+        avl_tree.insert(8, "8")
+        avl_tree.insert(22, "22")
+        avl_tree.insert(4, "4")
+        avl_tree.insert(20, "20")
+        avl_tree.insert(11, "11")
+        avl_tree.insert(24, "24")
+        avl_tree.insert(2, "2")
+        avl_tree.insert(18, "18")
+        avl_tree.insert(12, "12")
+        avl_tree.insert(9, "9")
+        avl_tree.insert(13, "13")
+
+        # Delete a node with two children
+        avl_tree.delete(avl_tree.search(24))
+
+        # Check that the node has been deleted and the successor node has taken its place
+        self.assertIsNone(avl_tree.search(24))
+        self.assertEqual(avl_tree.root.get_value(), "11")
+        self.assertEqual(avl_tree.root.get_left().get_value(), "8")
+        self.assertEqual(avl_tree.root.get_right().get_right().get_value(), "20")
