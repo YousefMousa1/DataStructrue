@@ -6,7 +6,7 @@ Project 1: AVL Tree
 Overview
 An AVL Tree is a self-balancing binary search tree where the difference between heights of left and right subtrees is at most one. This project involved implementing an AVL Tree from scratch, focusing on essential operations like insertion, deletion, and balancing.
 
-Features
+Features 
 Insertion: Automatically balances the tree after every insertion to maintain O(log n) height.
 Deletion: Handles rebalancing as nodes are removed.
 Rotations: Implements left, right, left-right, and right-left rotations for rebalancing.
